@@ -1,1 +1,17 @@
 # screenshot
+
+一键截图指令
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh)
+
+安装后使用方法：
+
+ss.sh "/视频所在文件目录"
+运行之后会在/home/screenshot文件夹下生成6张原尺寸截图和mediainfo信息。运行界面如下：（三种输入方式，视频路径最好加引号，有些目录名为空格时不加引号会出错）
+1）运行指令+视频目录：
+screenshot.sh "/home/downloads/XXXXXXXX"
+2）指令+视频：
+screenshot.sh "/home/downloads/XXXXXXX/YYYYYY.mkv"
+3）直接输入指令，按提示输入目录或视频：
+screenshot.sh
+接着再输入视频目录：
+/home/downloads/XXXXXXXX
