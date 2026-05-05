@@ -6,6 +6,7 @@
 curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | sed "s/\.\/bdinfo --help/\.\/bdinfo --help \> \/dev\/null 2\>\&1 \|\| true/" | bash
 ```
 安装后使用方法：
+
 一、截图：
 
 ss.sh "/视频所在文件目录"
