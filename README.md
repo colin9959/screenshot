@@ -1,10 +1,7 @@
 # screenshot
 
 一键安装截图和mediainfo、bdinfo指令
- ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh)
-```
-若出错，执行以下指令：
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | sudo bash
 ```
