@@ -24,3 +24,14 @@ screenshot.sh
 接着再输入视频目录：
 
 /home/downloads/XXXXXXXX
+BDinfo获取方法：
+
+扫描光盘并输出报告到光盘路径（交互式选择播放列表按序号选择，按q结束）
+适用于光盘目录（非 ISO 文件），报告将生成在光盘路径下：
+```bash
+./bdinfo BD_PATH   #BD_PATH为光盘目录路径
+```
+若 BD_PATH 是 ISO 文件，则必须指定报告输出目录（输出目录为必填参数）。
+```bash
+./bdinfo BD_PATH REPORT_OUTPUT_DIR  #REPORT_OUTPUT_DIR为输出目录
+```
