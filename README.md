@@ -1,6 +1,6 @@
 # screenshot
 
-一键截图指令
+一键安装截图和mediainfo、bdinfo指令
 ```bash
 sudo bash <(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh)
 ```
