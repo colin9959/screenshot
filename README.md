@@ -7,6 +7,7 @@ sudo bash <(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/ma
 安装后使用方法：
 
 ss.sh "/视频所在文件目录"
+
 运行之后会在/home/screenshot文件夹下生成6张原尺寸截图和mediainfo信息。运行界面如下：（三种输入方式，视频路径最好加引号，有些目录名为空格时不加引号会出错）
 
 1）运行指令+视频目录：
@@ -27,6 +28,7 @@ ss.sh
 BDinfo获取方法：
 
 扫描光盘并输出报告到光盘路径（交互式选择播放列表按序号选择，按q结束）
+
 适用于光盘目录（非 ISO 文件），报告将生成在光盘路径下：
 ```bash
 bdinfo BD_PATH   #BD_PATH为光盘目录路径
