@@ -2,7 +2,7 @@
 
 一键安装截图和mediainfo、bdinfo指令
 ```bash
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh)
+curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | sudo bash
 ```
 安装后使用方法：
 
