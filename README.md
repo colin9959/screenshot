@@ -3,7 +3,7 @@
 # 一键安装截图和mediainfo、bdinfo指令
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | sed "s/\.\/bdinfo --help/\.\/bdinfo --help \> \/dev\/null 2\>\&1 \|\| true/" | bash
+curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | bash
 ```
 安装后使用方法：
 
