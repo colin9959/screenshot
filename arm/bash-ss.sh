@@ -35,7 +35,7 @@ echo -e "\n[5/7] 赋予文件执行权限..."
 sudo chmod +x /usr/local/bin/ss.sh
 # 6. 下载并安装 BDInfo（zip版）
 echo -e "\n[6/7] 下载并安装 BDInfo..."
-sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/bdinfo -o /usr/local/bin/bdinfo
+sudo curl -fsSL https://github.com/colin9959/screenshot/releases/download/arm/bdinfo -o /usr/local/bin/bdinfo
 sudo chmod +x /usr/local/bin/bdinfo
 # 7. 安装完成提示
 echo -e "\n========================================"
