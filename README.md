@@ -1,9 +1,13 @@
 # screenshot
 
 # 一键安装截图和mediainfo、bdinfo指令
-
+## X86版本：
 ```bash
 curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | bash
+```
+## Arm版本：
+```bash
+curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/bash-ss.sh | tr -d '\r' | bash
 ```
 安装后使用方法：
 
