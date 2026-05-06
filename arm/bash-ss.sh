@@ -6,9 +6,9 @@ echo "      开始执行批量安装与配置脚本-arm版本"
 echo "        支持：ss截图 + BDInfo蓝光检测"
 echo "========================================"
 #
-# 1. 先更新源并安装 unzip（避免后面解压失败）
+# 1. 先更新源
 echo -e "\n[1/7] 安装解压工具 unzip..."
-sudo apt update -y && sudo apt install -y unzip
+sudo apt update -y 
 # 2. 安装所有依赖
 echo -e "\n[2/7] 更新系统并安装依赖包..."
 sudo apt install -y \
