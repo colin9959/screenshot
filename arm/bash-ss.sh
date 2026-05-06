@@ -37,13 +37,15 @@ sudo chmod +x /usr/local/bin/ss.sh
 # 6. 下载并安装 BDInfo（arm版）
 echo -e "\n[6/7] 下载并安装 BDInfo..."
 sudo curl -fsSL https://github.com/colin9959/screenshot/releases/download/arm/bdinfo -o /usr/local/bin/bdinfo
+sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/bd.sh -o /usr/local/bin/bd.sh
 sudo chmod +x /usr/local/bin/bdinfo
+sudo chmod +x /usr/local/bin/bd.sh
 # 7. 安装完成提示
 echo -e "\n========================================"
 echo "           所有操作执行完成！"
 echo ""
-echo " ✅ ss.sh        全局命令：ss.sh"
-echo " ✅ bdinfo       全局命令：bdinfo"
+echo " ✅ screenshot   全局命令：ss.sh"
+echo " ✅ bdinfo       全局命令：bd.sh"
 echo ""
 echo " 三个工具已全部安装成功！"
 echo "========================================"
