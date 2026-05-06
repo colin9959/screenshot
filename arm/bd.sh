@@ -1,65 +1,44 @@
 #!/bin/bash
 
-# 检查参数
+# 检查是否传入视频路径
 if [ $# -ne 1 ]; then
-    echo "用法：$0 <视频目录/ISO文件路径>"
+    echo "用法：$0 <视频目录路径/ISO文件路径>"
     exit 1
 fi
 
 INPUT_PATH="$1"
 
-# ==============================
-# 自动获取目录里最大的文件
-# ==============================
-get_largest_file() {
-    local dir="$1"
-    find "$dir" -type f | xargs ls -1S | head -n 1
-}
+# ===================== 核心修改：判断是否为 ISO 文件 =====================
+if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" =~ \.iso$|\.ISO$ ]]; then
+    # ========== 处理 ISO 文件：输出到 ISO 所在目录，文件名为 ISO 名（无后缀） ==========
+    echo "正在扫描 ISO 文件：$INPUT_PATH"
+    ISO_DIR=$(dirname "$INPUT_PATH")          # ISO 所在目录
+    ISO_NAME=$(basename "$INPUT_PATH" | sed 's/\.iso$//I')  # 去掉 .iso 后缀
+    BDINFO_FILE="${ISO_DIR}/${ISO_NAME}"      # 最终输出文件（无后缀）
+    
+    # 执行 bdinfo（ISO 专用）
+    bdinfo -p "$INPUT_PATH" -o "$ISO_DIR"
 
-# ==============================
-# 判断输入类型：目录 / ISO
-# ==============================
-if [ -d "$INPUT_PATH" ]; then
-    # 目录：自动选最大文件作为扫描目标
-    TARGET=$(get_largest_file "$INPUT_PATH")
-    echo "🔍 扫描目录：$INPUT_PATH"
-    echo "🎯 目标文件：$TARGET"
-
-    # 执行 bdinfo
-    bdinfo -p "$TARGET" -o "$TARGET"
-
-    # 找 .bdinfo 文件（上级目录）
-    PARENT_DIR=$(dirname "$TARGET")
-    BDINFO_FILE=$(find "$PARENT_DIR" -maxdepth 1 -type f -name "*.bdinfo" | head -n 1)
-
-elif [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" =~ \.iso$|\.ISO$ ]]; then
-    # ISO 文件：直接扫描，输出文件=视频文件名（无后缀），在当前目录
-    TARGET="$INPUT_PATH"
-    ISO_DIR=$(dirname "$INPUT_PATH")
-    ISO_FILENAME=$(basename "$INPUT_PATH" | sed -e 's/\.iso$//I')
-    BDINFO_FILE="${ISO_DIR}/${ISO_FILENAME}"
-
-    echo "🔍 扫描 ISO：$INPUT_PATH"
-    echo "📄 输出文件：$BDINFO_FILE"
-
-    # 执行 bdinfo
-    bdinfo -p "$TARGET" -o "$ISO_DIR"
 else
-    echo "❌ 无效路径：既不是目录也不是ISO文件"
-    exit 1
+    # ========== 原有逻辑：处理普通目录 ==========
+    echo "正在扫描蓝光目录：$INPUT_PATH"
+    bdinfo -p "$INPUT_PATH" -o "$INPUT_PATH"
+
+    # 定位生成的 .bdinfo 文件（在视频目录的上级目录）
+    PARENT_DIR=$(dirname "$INPUT_PATH")
+    BDINFO_FILE=$(find "$PARENT_DIR" -maxdepth 1 -type f -name "*.bdinfo" | head -n 1)
 fi
 
-# ==============================
-# 显示内容并删除文件
-# ==============================
+# ===================== 显示内容 + 自动删除（通用） =====================
 if [ -n "$BDINFO_FILE" ] && [ -f "$BDINFO_FILE" ]; then
     echo -e "\n========== BDINFO 扫描结果 ==========\n"
     cat "$BDINFO_FILE"
     echo -e "\n=====================================\n"
 
+    # 删除文件
     rm -f "$BDINFO_FILE"
-    echo "✅ 已展示并删除：$BDINFO_FILE"
+    echo "✅ 已展示并删除临时文件：$BDINFO_FILE"
 else
-    echo -e "\n❌ 错误：未找到 BDINFO 输出文件"
+    echo -e "\n❌ 错误：未找到生成的 BDINFO 文件"
     exit 1
 fi
