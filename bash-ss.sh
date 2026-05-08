@@ -14,12 +14,19 @@ sudo apt install -y jq build-essential libssl-dev libffi-dev ffmpeg libmediainfo
 echo -e "\n[3/7] 创建ISO挂载目录 /mnt/iso..."
 sudo mkdir -p /mnt/iso
 # 4. 下载 ss.sh 和 nconvert
-echo -e "\n[4/7] 下载 ss.sh 和 nconvert 文件..."
+# 先删除旧版本（如果存在）
+sudo rm -f /usr/local/bin/ss.sh
+sudo rm -f /usr/local/bin/bd.sh
+sudo rm -f /usr/local/bin/nconvert
+sudo rm -f /usr/local/bin/bdinfo
+echo -e "\n[4/7] 下载 ss.sh 和 bd.sh、nconvert 文件..."
 sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/ss.sh -o /usr/local/bin/ss.sh
+sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bd.sh -o /usr/local/bin/bd.sh
 sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/nconvert -o /usr/local/bin/nconvert
 # 5. 赋予执行权限
 echo -e "\n[5/7] 赋予文件执行权限..."
 sudo chmod +x /usr/local/bin/ss.sh
+sudo chmod +x /usr/local/bin/bd.sh
 sudo chmod +x /usr/local/bin/nconvert
 # 6. 下载并安装 BDInfoCLI-ng（zip版）
 echo -e "\n[6/7] 下载并安装 BDInfoCLI-ng..."
@@ -35,7 +42,7 @@ echo "           所有操作执行完成！"
 echo ""
 echo " ✅ ss.sh        全局命令：ss.sh"
 echo " ✅ nconvert     全局命令：nconvert"
-echo " ✅ bdinfo       全局命令：bdinfo"
+echo " ✅ bdinfo       全局命令：bd.sh"
 echo ""
 echo " 三个工具已全部安装成功！"
 echo "========================================"
