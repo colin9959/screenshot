@@ -6,7 +6,6 @@ TMP_LIST="/tmp/m2ts_list.txt"
 rm -f "$TMP_LIST"
 mkdir -p "$OUTPUT_DIR"
 
-# 显示从大到小的 m2ts（但我们取它的 BDMV 目录）
 show_list() {
   echo -e "\n====================================="
   echo " m2ts 文件（从大到小排序）"
@@ -23,15 +22,21 @@ show_list() {
   done
 }
 
-# 🔥 核心修复：BDInfo 只能扫 BDMV 文件夹，不能扫单个 m2ts
-scan_bdmv() {
-  local m2tsfile="$1"
-  local bdmv_dir="${m2tsfile%/BDMV/*}/BDMV"
-  local name="$(basename "${m2tsfile%.m2ts}")"
+# 🔥 真正单独扫单个 m2ts（修复 BDInfo 无法直接扫的问题）
+scan_single_m2ts() {
+  local m2ts="$1"
+  local name=$(basename "$m2ts" .m2ts)
+  local tmp_bdmv="/tmp/BDINFO_SCAN"
 
-  echo -e "\n正在扫描 BDMV 目录：$bdmv_dir"
-  BDInfo -p "$bdmv_dir" -o "$OUTPUT_DIR/bdinfo_$name.txt"
-  echo "✅ 扫描完成！报告保存到：$OUTPUT_DIR/bdinfo_$name.txt"
+  rm -rf "$tmp_bdmv"
+  mkdir -p "$tmp_bdmv/STREAM"
+  ln -s "$m2ts" "$tmp_bdmv/STREAM/00001.m2ts"
+
+  echo -e "\n正在单独扫描：$(basename "$m2ts")"
+  BDInfo -p "$tmp_bdmv" -o "$OUTPUT_DIR/bdinfo_$name.txt"
+  echo "✅ 完成：$OUTPUT_DIR/bdinfo_$name.txt"
+
+  rm -rf "$tmp_bdmv"
 }
 
 select_menu() {
@@ -41,7 +46,7 @@ select_menu() {
 
   mapfile -t arr < "$TMP_LIST"
   for i in $sel; do
-    scan_bdmv "${arr[$i-1]}"
+    scan_single_m2ts "${arr[$i-1]}"
   done
 }
 
