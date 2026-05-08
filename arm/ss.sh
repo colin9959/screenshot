@@ -122,6 +122,7 @@ screenshot_root="/home/screenshot"  # 输出根路径修改为/home/screenshot
 [[ ! $(command -v mediainfo) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mediainfo not found, please install it or set it to your \$PATH\n${normal}" && exit 1
 [[ ! $(command -v realpath) ]] && echo -e "\n${red}${bold}ERROR${jiacu} realpath not found, please install coreutils (Debian/Ubuntu) or util-linux (RHEL/CentOS)\n${normal}" && exit 1
 [[ ! $(command -v curl) ]] && echo -e "\n${red}${bold}ERROR${jiacu} curl not found, please install it for uploading screenshots\n${normal}" && exit 1
+[[ ! $(command -v convert) ]] && echo -e "\n${red}${bold}ERROR${jiacu} convert (ImageMagick) not found, required for PNG compression\n${normal}" && exit 1
 [[ $is_iso == true && ! $(command -v mountpoint) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mountpoint not found, required for ISO handling\n${normal}" && exit 1
 
 omediapath="$mediapath"
@@ -318,8 +319,32 @@ for c in $(seq -w 1 $pics) ; do
     i=$(expr $i + $timestampsetting) ; timestamp=$(date -u -d @$i +%H:%M:%S)
     echo -n "Writing ${blue}${file_title_clean}.scr${c}.png${normal} from timestamp ${blue}${timestamp}${normal} ...  "
     # 核心修改：添加 -compression_level 100（PNG最高压缩）
-    ffmpeg -y -ss "$timestamp" -i "$mediapath" -ss 00:00:01 -frames:v 1 -s "$fenbianlv" -compression_level 100 "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+    ffmpeg -y -ss "$timestamp" -i "$mediapath" -ss 00:00:01 -frames:v 1 -s "$fenbianlv" -compression_level 9 "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
     [[ -f "${outputpath}/${file_title_clean}.scr${c}.png" ]] && success_src=y || success_src=n
+
+    # ===================== 新增：大于10MB自动压缩 =====================
+    if [[ $success_src == y ]]; then
+        IMG_PATH="${outputpath}/${file_title_clean}.scr${c}.png"
+        FILE_SIZE=$(stat -c%s "$IMG_PATH" 2>/dev/null || echo 0)
+        MAX_SIZE=$((10 * 1024 * 1024)) # 10MB
+        
+        if (( FILE_SIZE > MAX_SIZE )); then
+            echo -n -e "\n${yellow}文件超过10MB，正在高质量压缩...${normal} "
+            TMP_FILE="${IMG_PATH}.tmp.png"
+            convert "$IMG_PATH" \
+              -colorspace sRGB \
+              -type truecolor \
+              -depth 8 \
+              -define png:compression-level=9 \
+              -strip "$TMP_FILE"
+            if [[ -f "$TMP_FILE" ]]; then
+                mv -f "$TMP_FILE" "$IMG_PATH"
+                echo -n -e "${green}压缩完成${normal} "
+            fi
+        fi
+    fi
+    # ==================================================================
+
     [[ $success_src == y ]] && echo -e "${green}DONE${normal}" || echo -e "${red}ERROR${normal}"
 done
 
@@ -446,13 +471,19 @@ else
     echo -e "\n${yellow}Warning: No successful image uploads to add to mediainfo file${normal}"
 fi
 
-# 展示有效的图片URL
+# ===================== 展示 URL + BBCode 格式 =====================
 if [[ ${#SHOW_URLS[@]} -gt 0 ]]; then
     echo -e "\n${bold}所有图片上传完成!有效的URL如下:${normal}"
     for url in "${SHOW_URLS[@]}"; do
         echo -e "${cyan}$url${normal}"
     done
+
+    echo -e "\n${bold}BBCode 格式 (可直接粘贴论坛):${normal}"
+    for url in "${SHOW_URLS[@]}"; do
+        echo -e "${green}[img]$url[/img]${normal}"
+    done
 fi
+# ==================================================================
 
 # 处理ISO文件的卸载
 if [[ $is_iso == true ]]; then
