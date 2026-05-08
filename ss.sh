@@ -352,12 +352,29 @@ for c in $(seq -w 1 $pics) ; do
     [[ -f "${outputpath}/${file_title_clean}.scr${c}.png" ]] && success_src=y || success_src=n
     [[ $success_src == y ]] && echo -e "${green}DONE${normal}" || echo -e "${red}ERROR${normal}"
 
-# 压缩截图（如果nconvert存在）
+# 压缩截图（仅当文件大于 10MB 时执行）
 [[ $(command -v nconvert) ]] && {
-echo -n "Compressing ${blue}${file_title_clean}.scr${c}.png${normal} ...  "
-nconvert -out png -clevel 6 -o "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
-[[ $? -eq 0 ]] && success_convert=y || success_convert=n
-mv -f "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+    # 获取文件大小（字节）
+    file_size_bytes=$(stat -c "%s" "${outputpath}/${file_title_clean}.scr${c}.png")
+    max_size=$((10 * 1024 * 1024)) # 10MB
+
+    if [[ $file_size_bytes -gt $max_size ]]; then
+        echo -n "Compressing ${blue}${file_title_clean}.scr${c}.png${normal} ...  "
+        nconvert -out png -clevel 6 -o "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+        [[ $? -eq 0 ]] && success_convert=y || success_convert=n
+        mv -f "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+
+        if [[ $success_convert == y ]]; then
+            new_size=$(du -h "${outputpath}/${file_title_clean}.scr${c}.png" | cut -f1)
+            echo -e "${green}DONE (Size: ${new_size})${normal}"
+        else
+            echo -e "${red}ERROR${normal}"
+        fi
+    else
+        echo -e "${green}SKIP (Size ≤10MB, no compression)${normal}"
+        success_convert=y
+    fi
+}
 
 # 获取压缩后文件大小
 if [[ $success_convert == y ]]; then
