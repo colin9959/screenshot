@@ -6,6 +6,7 @@ TMP_LIST="/tmp/m2ts_list.txt"
 rm -f "$TMP_LIST"
 mkdir -p "$OUTPUT_DIR"
 
+# 显示文件列表（从大到小）
 show_list() {
   echo -e "\n====================================="
   echo " m2ts 文件（从大到小排序）"
@@ -22,23 +23,21 @@ show_list() {
   done
 }
 
-# 🔥 真正单独扫单个 m2ts（修复 BDInfo 无法直接扫的问题）
-scan_single_m2ts() {
-  local m2ts="$1"
-  local name=$(basename "$m2ts" .m2ts)
-  local tmp_bdmv="/tmp/BDINFO_SCAN"
+# 🔥 唯一稳定方案：直接扫整个BDMV，但输出文件以选中的m2ts命名
+scan_bdmv_with_name() {
+  local m2tsfile="$1"
+  local bdmv_dir="${m2tsfile%/BDMV/*}/BDMV"
+  local outname="bdinfo_$(basename "${m2tsfile%.m2ts}")"
 
-  rm -rf "$tmp_bdmv"
-  mkdir -p "$tmp_bdmv/STREAM"
-  ln -s "$m2ts" "$tmp_bdmv/STREAM/00001.m2ts"
+  echo -e "\n====================================="
+  echo "正在扫描：$(basename "$m2tsfile")"
+  echo "====================================="
 
-  echo -e "\n正在单独扫描：$(basename "$m2ts")"
-  BDInfo -p "$tmp_bdmv" -o "$OUTPUT_DIR/bdinfo_$name.txt"
-  echo "✅ 完成：$OUTPUT_DIR/bdinfo_$name.txt"
-
-  rm -rf "$tmp_bdmv"
+  BDInfo -p "$bdmv_dir" -o "$OUTPUT_DIR/$outname.txt"
+  echo "✅ 扫描完成 → $OUTPUT_DIR/$outname.txt"
 }
 
+# 选择序号
 select_menu() {
   echo -e "=====================================\n"
   read -p "输入序号扫描，q 退出：" sel
@@ -46,10 +45,11 @@ select_menu() {
 
   mapfile -t arr < "$TMP_LIST"
   for i in $sel; do
-    scan_single_m2ts "${arr[$i-1]}"
+    scan_bdmv_with_name "${arr[$i-1]}"
   done
 }
 
+# 入口
 [[ $# -ne 1 ]] && { echo "用法：$0 <蓝光目录>"; exit 1; }
 show_list "$1"
 select_menu
