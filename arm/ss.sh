@@ -4,6 +4,7 @@
 # Author: Aniverse
 # Modified: 兼容含括号/特殊字符的路径，支持命令行参数+标准输入，调整输出路径及文件夹名规则，添加pixhost上传功能，增加ISO文件支持
 # 适配ARM架构：移除nconvert压缩，FFmpeg截图使用最高PNG压缩
+# 新增：自动安装ImageMagick、大于10MB自动convert高质量压缩、输出BBCode图片链接
 # 使用：./screenshot.sh "/视频所在的绝对目录或ISO文件路径"
 # --------------------------------------------------------------------------------
 # 输出路径：/home/screenshot/[文件夹名]
@@ -15,8 +16,8 @@
 # --------------------------------------------------------------------------------
 pics=6
 # --------------------------------------------------------------------------------
-script_update=2026.05.06
-script_version=r21048-mod-fix-special-chars-path-rule-upload-iso-support-arm
+script_update=2026.05.08
+script_version=r21048-mod-auto-install-imagemagick-compress-bbcode
 # --------------------------------------------------------------------------------
 
 # 中断时清理临时文件和ISO挂载
@@ -36,6 +37,41 @@ trap cancel SIGINT
 # 颜色定义
 black=$(tput setaf 0); red=$(tput setaf 1); green=$(tput setaf 2); yellow=$(tput setaf 3); blue=$(tput setaf 4); magenta=$(tput setaf 5); cyan=$(tput setaf 6); white=$(tput setaf 7)
 bold=$(tput bold); normal=$(tput sgr0); underline=$(tput smul); reset_underline=$(tput rmul); jiacu=${normal}${bold}
+
+# ===================== 自动安装依赖函数 =====================
+install_deps() {
+    echo -e "\n${bold}${yellow}开始检测并自动安装缺失依赖...${normal}"
+    if command -v apt &>/dev/null; then
+        # Debian / Ubuntu
+        sudo apt update -qq
+        sudo apt install -y ffmpeg mediainfo curl coreutils mountpoint imagemagick
+    elif command -v dnf &>/dev/null; then
+        # CentOS 8+/Rocky/Alma
+        sudo dnf install -y ffmpeg mediainfo curl coreutils util-linux mountpoint ImageMagick
+    elif command -v yum &>/dev/null; then
+        # CentOS 7
+        sudo yum install -y ffmpeg mediainfo curl coreutils util-linux mountpoint ImageMagick
+    else
+        echo -e "${red}${bold}不支持当前系统，请手动安装：ffmpeg mediainfo curl coreutils mountpoint imagemagick${normal}"
+        exit 1
+    fi
+    echo -e "${green}${bold}依赖安装完成${normal}\n"
+}
+
+# 先检测关键依赖，缺失则自动安装
+need_install=0
+[[ ! $(command -v awk) ]] && need_install=1
+[[ ! $(command -v ffmpeg) ]] && need_install=1
+[[ ! $(command -v mediainfo) ]] && need_install=1
+[[ ! $(command -v realpath) ]] && need_install=1
+[[ ! $(command -v curl) ]] && need_install=1
+[[ ! $(command -v convert) ]] && need_install=1
+[[ ! $(command -v mountpoint) ]] && need_install=1
+
+if [[ $need_install -eq 1 ]]; then
+    install_deps
+fi
+# ============================================================
 
 # 核心修复：兼容含特殊字符（括号、空格）的路径，支持命令行参数+标准输入
 fenbianlv=""
@@ -116,14 +152,14 @@ fi
 Source=undefined
 screenshot_root="/home/screenshot"  # 输出根路径修改为/home/screenshot
 
-# 依赖检查（移除nconvert检查，保留ARM常用工具）
-[[ ! $(command -v awk) ]] && echo -e "\n${red}${bold}ERROR${jiacu} awk not found, please install it${normal}" && exit 1
-[[ ! $(command -v ffmpeg) ]] && echo -e "\n${red}${bold}ERROR${jiacu} ffmpeg not found, please install it or set it to your \$PATH\n${normal}" && exit 1
-[[ ! $(command -v mediainfo) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mediainfo not found, please install it or set it to your \$PATH\n${normal}" && exit 1
-[[ ! $(command -v realpath) ]] && echo -e "\n${red}${bold}ERROR${jiacu} realpath not found, please install coreutils (Debian/Ubuntu) or util-linux (RHEL/CentOS)\n${normal}" && exit 1
-[[ ! $(command -v curl) ]] && echo -e "\n${red}${bold}ERROR${jiacu} curl not found, please install it for uploading screenshots\n${normal}" && exit 1
-[[ ! $(command -v convert) ]] && echo -e "\n${red}${bold}ERROR${jiacu} convert (ImageMagick) not found, required for PNG compression\n${normal}" && exit 1
-[[ $is_iso == true && ! $(command -v mountpoint) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mountpoint not found, required for ISO handling\n${normal}" && exit 1
+# 依赖二次校验（防止自动安装后仍缺失）
+[[ ! $(command -v awk) ]] && echo -e "\n${red}${bold}ERROR${jiacu} awk not found${normal}" && exit 1
+[[ ! $(command -v ffmpeg) ]] && echo -e "\n${red}${bold}ERROR${jiacu} ffmpeg not found${normal}" && exit 1
+[[ ! $(command -v mediainfo) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mediainfo not found${normal}" && exit 1
+[[ ! $(command -v realpath) ]] && echo -e "\n${red}${bold}ERROR${jiacu} realpath not found${normal}" && exit 1
+[[ ! $(command -v curl) ]] && echo -e "\n${red}${bold}ERROR${jiacu} curl not found${normal}" && exit 1
+[[ ! $(command -v convert) ]] && echo -e "\n${red}${bold}ERROR${jiacu} convert (ImageMagick) not found${normal}" && exit 1
+[[ $is_iso == true && ! $(command -v mountpoint) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mountpoint not found${normal}" && exit 1
 
 omediapath="$mediapath"
 FileLoc="$(dirname "$omediapath")"
@@ -318,11 +354,11 @@ echo -e "${bold}Output directory: ${yellow}${outputpath}${normal}"
 for c in $(seq -w 1 $pics) ; do
     i=$(expr $i + $timestampsetting) ; timestamp=$(date -u -d @$i +%H:%M:%S)
     echo -n "Writing ${blue}${file_title_clean}.scr${c}.png${normal} from timestamp ${blue}${timestamp}${normal} ...  "
-    # 核心修改：添加 -compression_level 100（PNG最高压缩）
+    # 核心修改：添加 -compression_level 9
     ffmpeg -y -ss "$timestamp" -i "$mediapath" -ss 00:00:01 -frames:v 1 -s "$fenbianlv" -compression_level 9 "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
     [[ -f "${outputpath}/${file_title_clean}.scr${c}.png" ]] && success_src=y || success_src=n
 
-    # ===================== 新增：大于10MB自动压缩 =====================
+    # 大于10MB自动用convert高质量压缩
     if [[ $success_src == y ]]; then
         IMG_PATH="${outputpath}/${file_title_clean}.scr${c}.png"
         FILE_SIZE=$(stat -c%s "$IMG_PATH" 2>/dev/null || echo 0)
@@ -343,7 +379,6 @@ for c in $(seq -w 1 $pics) ; do
             fi
         fi
     fi
-    # ==================================================================
 
     [[ $success_src == y ]] && echo -e "${green}DONE${normal}" || echo -e "${red}ERROR${normal}"
 done
@@ -388,28 +423,24 @@ else
     echo -e "\n${yellow}Warning: No Blu-ray info files found in BDMV directory${normal}"
 fi ; }
 
-# 新增：上传截图到pixhost
+# 上传截图到pixhost
 echo -e "\n${bold}Uploading screenshots to pixhost...${normal}"
 
-# 定义上传参数
-MAX_RETRIES=3  # 最大重试次数
-SHOW_URLS=()   # 存储成功上传的图片URL
+MAX_RETRIES=3
+SHOW_URLS=()
 FILE_PREFIX="${file_title_clean}.scr"
 FILE_SUFFIX=".png"
 
-# 遍历所有截图文件（1到$pics）
 for c in $(seq -w 1 $pics); do
     IMG_FILE="${outputpath}/${FILE_PREFIX}${c}${FILE_SUFFIX}"
     RETRY=0
     UPLOAD_SUCCESS=false
 
-    # 检查截图文件是否存在
     if [[ ! -f "$IMG_FILE" ]]; then
         echo "Skipping ${blue}$(basename "$IMG_FILE")${normal} - 文件不存在"
         continue
     fi
 
-    # 带重试的上传逻辑
     while [[ $RETRY -lt $MAX_RETRIES && $UPLOAD_SUCCESS == false ]]; do
         echo -n "Uploading ${blue}$(basename "$IMG_FILE")${normal} ...  "
         RESPONSE=$(curl -s -X POST "https://api.pixhost.to/images" \
@@ -419,9 +450,7 @@ for c in $(seq -w 1 $pics); do
             -F 'content_type=0' \
             -F 'max_th_size=420')
 
-        # 检查curl执行是否成功
         if [[ $? -eq 0 ]]; then
-            # 提取并修正URL（优先使用jq解析，兼容grep）
             if command -v jq &>/dev/null; then
                 SHOW_URL=$(echo "$RESPONSE" | jq -r '.show_url')
             else
@@ -429,13 +458,12 @@ for c in $(seq -w 1 $pics); do
             fi
 
             if [[ -n "$SHOW_URL" && "$SHOW_URL" != "null" ]]; then
-                # 修正URL格式（处理转义符和域名）
                 FIXED_URL=$(echo "$SHOW_URL" | sed -e 's|\\||g' -e 's|://pixhost\.to|://img2.pixhost.to|' -e 's|/show/|/images/|')
                 echo -e "${green}SUCCESS${normal}"
                 SHOW_URLS+=("$FIXED_URL")
                 UPLOAD_SUCCESS=true
             else
-                echo -e "${red}FAILED${normal} - 未获取有效URL（响应：$RESPONSE）"
+                echo -e "${red}FAILED${normal} - 未获取有效URL"
                 RETRY=$((RETRY + 1))
                 [[ $RETRY -lt $MAX_RETRIES ]] && sleep 2
             fi
@@ -447,45 +475,36 @@ for c in $(seq -w 1 $pics); do
     done
 done
 
-# 将成功上传的URL写入媒体信息文件（置于最前面）
+# 将URL写入mediainfo头部
 MEDIA_INFO_FILE="${outputpath}/${file_title_clean}.mediainfo.txt"
 if [[ ${#SHOW_URLS[@]} -gt 0 ]]; then
-    # 创建临时文件
     TEMP_FILE=$(mktemp)
-    
-    # 先写入截图链接内容到临时文件
     echo -e "# 截图链接" > "$TEMP_FILE"
     for url in "${SHOW_URLS[@]}"; do
         echo "$url" >> "$TEMP_FILE"
     done
-    echo -e "\n" >> "$TEMP_FILE"  # 增加空行分隔
-    
-    # 再将原媒体信息文件内容追加到临时文件
+    echo -e "\n" >> "$TEMP_FILE"
     cat "$MEDIA_INFO_FILE" >> "$TEMP_FILE"
-    
-    # 用临时文件替换原媒体信息文件
     mv -f "$TEMP_FILE" "$MEDIA_INFO_FILE"
-    
     echo -e "\n${green}已将截图链接添加到媒体信息文件最前面${normal}"
 else
-    echo -e "\n${yellow}Warning: No successful image uploads to add to mediainfo file${normal}"
+    echo -e "\n${yellow}Warning: No successful image uploads${normal}"
 fi
 
-# ===================== 展示 URL + BBCode 格式 =====================
+# 展示原始URL + BBCode格式
 if [[ ${#SHOW_URLS[@]} -gt 0 ]]; then
     echo -e "\n${bold}所有图片上传完成!有效的URL如下:${normal}"
     for url in "${SHOW_URLS[@]}"; do
         echo -e "${cyan}$url${normal}"
     done
 
-    echo -e "\n${bold}BBCode 格式 (可直接粘贴论坛):${normal}"
+    echo -e "\n${bold}BBCode 论坛格式链接:${normal}"
     for url in "${SHOW_URLS[@]}"; do
         echo -e "${green}[img]$url[/img]${normal}"
     done
 fi
-# ==================================================================
 
-# 处理ISO文件的卸载
+# 卸载ISO
 if [[ $is_iso == true ]]; then
     echo -e "\n${bold}开始卸载ISO挂载...${normal}"
     if sudo umount /mnt/iso; then
