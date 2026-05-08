@@ -26,7 +26,7 @@ cancel() {
     rm -f "${outputpath}/${file_title_clean}*" 2>/dev/null ; 
     # 若处理ISO文件，中断时卸载挂载
     if [[ $is_iso == true ]]; then
-        if mountpoint -q /mnt/iso; then
+        if grep -qs '/mnt/iso' /proc/mounts; then
             sudo umount /mnt/iso 2>/dev/null && echo -e "${yellow}已卸载ISO挂载${normal}"
         fi
     fi
@@ -44,15 +44,15 @@ install_deps() {
     if command -v apt &>/dev/null; then
         # Debian / Ubuntu
         sudo apt update -qq
-        sudo apt install -y ffmpeg mediainfo curl coreutils mountpoint imagemagick
+        sudo apt install -y ffmpeg mediainfo curl coreutils util-linux imagemagick
     elif command -v dnf &>/dev/null; then
         # CentOS 8+/Rocky/Alma
-        sudo dnf install -y ffmpeg mediainfo curl coreutils util-linux mountpoint ImageMagick
+        sudo dnf install -y ffmpeg mediainfo curl coreutils util-linux ImageMagick
     elif command -v yum &>/dev/null; then
         # CentOS 7
-        sudo yum install -y ffmpeg mediainfo curl coreutils util-linux mountpoint ImageMagick
+        sudo yum install -y ffmpeg mediainfo curl coreutils util-linux ImageMagick
     else
-        echo -e "${red}${bold}不支持当前系统，请手动安装：ffmpeg mediainfo curl coreutils mountpoint imagemagick${normal}"
+        echo -e "${red}${bold}不支持当前系统，请手动安装：ffmpeg mediainfo curl coreutils util-linux imagemagick${normal}"
         exit 1
     fi
     echo -e "${green}${bold}依赖安装完成${normal}\n"
@@ -66,7 +66,6 @@ need_install=0
 [[ ! $(command -v realpath) ]] && need_install=1
 [[ ! $(command -v curl) ]] && need_install=1
 [[ ! $(command -v convert) ]] && need_install=1
-[[ ! $(command -v mountpoint) ]] && need_install=1
 
 if [[ $need_install -eq 1 ]]; then
     install_deps
@@ -119,7 +118,7 @@ if [[ -f "$mediapath" && ( "$mediapath" =~ \.iso$ || "$mediapath" =~ \.ISO$ ) ]]
     echo -e "\n${bold}检测到ISO文件：${blue}$iso_filename${normal}"
     
     # 检查挂载点是否已被占用
-    if mountpoint -q /mnt/iso; then
+    if grep -qs '/mnt/iso' /proc/mounts; then
         echo -e "${red}ERROR：/mnt/iso 已被挂载，请先手动卸载后再试${normal}"
         exit 1
     fi
@@ -159,23 +158,22 @@ screenshot_root="/home/screenshot"  # 输出根路径修改为/home/screenshot
 [[ ! $(command -v realpath) ]] && echo -e "\n${red}${bold}ERROR${jiacu} realpath not found${normal}" && exit 1
 [[ ! $(command -v curl) ]] && echo -e "\n${red}${bold}ERROR${jiacu} curl not found${normal}" && exit 1
 [[ ! $(command -v convert) ]] && echo -e "\n${red}${bold}ERROR${jiacu} convert (ImageMagick) not found${normal}" && exit 1
-[[ $is_iso == true && ! $(command -v mountpoint) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mountpoint not found${normal}" && exit 1
 
 omediapath="$mediapath"
 FileLoc="$(dirname "$omediapath")"
 
 # 处理目录输入（选择最大文件）
 [[ -d "$mediapath" ]] && {
-mediapath=$( find "$mediapath" -type f -print0 | xargs -0 ls -1S 2>&1 | head -1 )
+mediapath=$( find "$mediapath" -type f -print0 2>/dev/null | xargs -0 ls -1S 2>/dev/null | head -1 )
 
 # 识别DVD来源
 dirname "$mediapath" | grep VIDEO_TS -q && Source=DVD && 
-ifo="$( find "$omediapath" -type f -name "*.[Ii][Ff][Oo]" -print0 | xargs -0 ls -S 2>&1 | head -1 )" &&
+ifo="$( find "$omediapath" -type f -name "*.[Ii][Ff][Oo]" -print0 2>/dev/null | xargs -0 ls -S 2>/dev/null | head -1 )" &&
 disk_path="$(dirname "$(dirname "$mediapath")")" && disk_title="$(basename "$disk_path")"
 
 # 识别蓝光来源
 dirname "$mediapath" | grep STREAM   -q && Source=Blu-ray &&
-bdmv_dir=$( find "$omediapath" -type d -name "BDMV" | head -1 ) &&
+bdmv_dir=$( find "$omediapath" -type d -name "BDMV" 2>/dev/null | head -1 ) &&
 disk_path="$( dirname "$( dirname "$(dirname "$mediapath")")")" && disk_title="$(basename "$disk_path")"
 
 # 清理光盘标题特殊字符
@@ -242,7 +240,7 @@ mediapath=\"$mediapath\"
 ffmpeg -i \"\$mediapath\"
 mediainfo -f \"\$mediapath\"
 ${normal}"
-[[ ! $Source == undefined ]] && ls -hAlvZ --color "$(dirname "$mediapath")"
+[[ ! $Source == undefined ]] && ls -hAlvZ --color "$(dirname "$mediapath")" 2>/dev/null
 echo -e "\n\n"
 ffmpeg -i "$mediapath"
 echo
