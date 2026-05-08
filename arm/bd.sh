@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -e
 
 # ===================== 配置 =====================
 BDINFO_URL_X64="https://github.com/dotnetcorecorner/BDInfo/releases/download/linux-2.0.6/bdinfo_linux_v2.0.6.zip"
@@ -22,73 +22,47 @@ install_bdinfo() {
         echo "检测到 x86_64 架构，安装 BDInfo..."
         url="$BDINFO_URL_X64"
     fi
+    wget -q -O "$TEMPDIR/bd.zip" "$url" || wget -q -O "$TEMPDIR/bd.zip" "https://ghfast.top/$url"
+    unzip -q -o "$TEMPDIR/bd.zip" -d "$TEMPDIR"
+    chmod +x "$TEMPDIR"/BDInfo*
+    sudo cp "$TEMPDIR"/BDInfo* "$INSTALL_DIR/"
+    echo "BDInfo 安装成功！"
+}
 
-    mirrors=("$url" "https://ghfast.top/$url")
-    for m in "${mirrors[@]}"; do
-        if wget -q "$m" -O "$TEMPDIR/bd.zip"; then
-            unzip -q -o "$TEMPDIR/bd.zip" -d "$TEMPDIR"
-            chmod +x "$TEMPDIR"/BDInfo*
-            sudo cp "$TEMPDIR"/BDInfo* "$INSTALL_DIR/"
-            echo "BDInfo 安装成功！"
-            break
+# ===================== 显示所有 m2ts =====================
+show_m2ts() {
+    local path="$1"
+    echo -e "\n==================== 所有 m2ts 文件（从大到小）===================="
+    find "$path" -type f -iname "*.m2ts" | xargs du -b | sort -nr | awk '{printf "%d\t%s\n", $1, substr($0, index($0,$2))}' | while read -r size file; do
+        ((i++))
+        echo -e "[$i]\t$(numfmt --to=iec $size)\t$file"
+        echo "$file" >> "$TEMPDIR/list.txt"
+    done
+    echo "======================================================================"
+}
+
+# ===================== 选择文件 =====================
+choose_files() {
+    mapfile -t all_files < "$TEMPDIR/list.txt"
+    read -p "输入要扫描的序号（多选用空格分隔，输入 q 开始）：" input
+    if [[ "$input" == "q" ]]; then exit 0; fi
+    selected=()
+    for idx in $input; do
+        if [[ $idx =~ ^[0-9]+$ ]] && (( idx >= 1 && idx <= ${#all_files[@]} )); then
+            selected+=("${all_files[$idx-1]}")
         fi
     done
 }
 
-# ===================== 核心：获取 m2ts 列表（纯数据，无界面） =====================
-get_m2ts_list() {
-    find "$1" -type f -iname "*.m2ts" | while read -r f; do
-        size=$(stat -c%s "$f")
-        echo "$size"$'\t'"$f"
-    done | sort -nr | cut -f2
-}
-
-# ===================== 交互选择（安全、干净、无脏数据） =====================
-show_menu() {
-    local files=("$@")
-    echo -e "\n========== 所有 m2ts 文件（从大到小）=========="
-    for i in "${!files[@]}"; do
-        size=$(du -h "${files[$i]}" | awk '{print $1}')
-        echo "[$((i+1))]  $size  ${files[$i]}"
+# ===================== 扫描 =====================
+scan() {
+    for file in "$@"; do
+        echo -e "\n正在扫描：$file"
+        name=$(basename "$file" .m2ts)
+        BDInfo -p "$file" -o "$TEMPDIR/$name.txt"
+        cp "$TEMPDIR/$name.txt" "$OUTPUT_DIR/bdinfo_$name.txt"
+        echo "✅ 扫描完成，保存到：$OUTPUT_DIR/bdinfo_$name.txt"
     done
-    echo -e "\n输入序号多选（空格分隔），输入 q 开始扫描"
-    read -p "请选择：" ans
-    echo "$ans"
-}
-
-# ===================== 扫描单个 =====================
-scan_file() {
-    local f="$1"
-    local name=$(basename "$f" .m2ts)
-    local out="$TEMPDIR/$name.txt"
-
-    echo -e "\n====================================="
-    echo "正在扫描：$f"
-    echo "====================================="
-
-    if BDInfo -p "$f" -o "$out" &>/dev/null; then
-        cp "$out" "$OUTPUT_DIR/bdinfo_$name.txt"
-        awk '
-        BEGIN{RS="DISC INFO:";max=0;res=""}
-        NR>1{
-            t=$0; sub(/FILES:.*/,"",t)
-            if(match(t,/Size:[ ]*([0-9,]+)/)) {
-                v=gensub(/,/,"","g",substr(t,RSTART+5))
-                if(v+0>max){max=v;res=t}
-            }
-        }
-        END{
-            if(res){
-                sub(/ +$/,"",res)
-                print "--- BDInfo 信息 ---"
-                print res
-                print "-------------------"
-            }
-        }' "$out"
-    else
-        echo "⚠️  扫描失败"
-    fi
-    rm -f "$out"
 }
 
 # ===================== 清理 =====================
@@ -99,11 +73,10 @@ cleanup() {
 trap cleanup EXIT
 
 # ===================== 主程序 =====================
-[[ $# -ne 1 ]] && { echo "用法：$0 <蓝光目录/ISO文件>"; exit 1; }
+[[ $# -ne 1 ]] && { echo "用法：$0 <蓝光目录/ISO>"; exit 1; }
 input="$1"
 install_bdinfo
 
-# 挂载ISO
 if [[ "${input##*.}" == "iso" ]]; then
     echo "挂载 ISO..."
     sudo mount -o loop "$input" "$MOUNT_POINT"
@@ -112,25 +85,13 @@ else
     target="$input"
 fi
 
-# 读取文件列表（纯路径）
-mapfile -t all_files < <(get_m2ts_list "$target")
-[[ ${#all_files[@]} -eq 0 ]] && { echo "未找到 m2ts"; exit 1; }
+# 显示列表
+show_m2ts "$target"
 
 # 选择
-ans=$(show_menu "${all_files[@]}")
-[[ "$ans" == "q" ]] && exit 0
+choose_files
 
-# 解析选择
-selected=()
-for n in $ans; do
-    if [[ $n =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#all_files[@]} )); then
-        selected+=("${all_files[$n-1]}")
-    fi
-done
+# 扫描
+scan "${selected[@]}"
 
-# 批量扫描
-for f in "${selected[@]}"; do
-    scan_file "$f"
-done
-
-echo -e "\n✅ 扫描完成！报告保存到：$OUTPUT_DIR"
+echo -e "\n🎉 全部扫描完成！"
