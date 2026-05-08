@@ -354,23 +354,25 @@ for c in $(seq -w 1 $pics) ; do
 
     # 压缩截图（仅当文件大于 10MB 时执行）
     [[ $(command -v nconvert) ]] && {
-        file_size_bytes=$(stat -c "%s" "${outputpath}/${file_title_clean}.scr${c}.png")
+        img="${outputpath}/${file_title_clean}.scr${c}.png"
+        file_size_bytes=$(stat -c "%s" "$img")
         max_size=$((10 * 1024 * 1024))
+        raw_size=$(du -h "$img" | cut -f1)
 
         if [[ $file_size_bytes -gt $max_size ]]; then
-            echo -n "Compressing ${blue}${file_title_clean}.scr${c}.png${normal} ...  "
-            nconvert -out png -clevel 6 -o "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+            echo -n "Compressing ${blue}${file_title_clean}.scr${c}.png${normal} (Size: ${raw_size}) ...  "
+            nconvert -out png -clevel 6 -o "${img}.tmp" "$img" > /dev/null 2>&1
             [[ $? -eq 0 ]] && success_convert=y || success_convert=n
-            mv -f "${outputpath}/${file_title_clean}.scr${c}_1.png" "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
+            mv -f "${img}.tmp" "$img" > /dev/null 2>&1
 
             if [[ $success_convert == y ]]; then
-                new_size=$(du -h "${outputpath}/${file_title_clean}.scr${c}.png" | cut -f1)
-                echo -e "${green}DONE (Size: ${new_size})${normal}"
+                new_size=$(du -h "$img" | cut -f1)
+                echo -e "${green}DONE (${raw_size} → ${new_size})${normal}"
             else
                 echo -e "${red}ERROR${normal}"
             fi
         else
-            echo -e "${green}SKIP (≤10MB，不压缩)${normal}"
+            echo -e "${green}SKIP (Size: ${raw_size})${normal}"
             success_convert=y
         fi
     }
