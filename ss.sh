@@ -15,8 +15,40 @@
 pics=6
 # --------------------------------------------------------------------------------
 script_update=2025.11.26
-script_version=r21048-mod-fix-special-chars-path-rule-upload-iso-support
+script_version=r21048-mod-fix-special-chars-path-rule-upload-iso-support-auto-deps
 # --------------------------------------------------------------------------------
+
+# ===================== 自动安装依赖函数 =====================
+auto_install_deps() {
+    echo -e "\n${bold}${yellow}检测到缺失依赖，正在自动安装所需工具...${normal}"
+    if command -v apt &>/dev/null; then
+        sudo apt update -qq
+        sudo apt install -y ffmpeg mediainfo curl coreutils util-linux mountpoint nconvert
+    elif command -v dnf &>/dev/null; then
+        sudo dnf install -y ffmpeg mediainfo curl coreutils util-linux mountpoint nconvert
+    elif command -v yum &>/dev/null; then
+        sudo yum install -y ffmpeg mediainfo curl coreutils util-linux mountpoint nconvert
+    else
+        echo -e "${red}${bold}无法识别系统，请手动安装依赖：ffmpeg mediainfo curl coreutils util-linux mountpoint nconvert${normal}"
+        exit 1
+    fi
+    echo -e "\n${green}${bold}依赖安装完成！${normal}"
+}
+
+# 自动检测缺失的依赖
+need_install=0
+[[ ! $(command -v awk) ]] && need_install=1
+[[ ! $(command -v ffmpeg) ]] && need_install=1
+[[ ! $(command -v mediainfo) ]] && need_install=1
+[[ ! $(command -v realpath) ]] && need_install=1
+[[ ! $(command -v curl) ]] && need_install=1
+[[ ! $(command -v mountpoint) ]] && need_install=1
+
+# 如果缺失，自动安装
+if [[ $need_install -eq 1 ]]; then
+    auto_install_deps
+fi
+# ============================================================
 
 # 中断时清理临时文件和ISO挂载
 cancel() { 
@@ -115,7 +147,7 @@ fi
 Source=undefined
 screenshot_root="/home/screenshot"  # 输出根路径修改为/home/screenshot
 
-# 依赖检查
+# 依赖二次检查（确保安装成功）
 [[ ! $(command -v awk) ]] && echo -e "\n${red}${bold}ERROR${jiacu} awk not found, please install it${normal}" && exit 1
 [[ ! $(command -v ffmpeg) ]] && echo -e "\n${red}${bold}ERROR${jiacu} ffmpeg not found, please install it or set it to your \$PATH\n${normal}" && exit 1
 [[ ! $(command -v mediainfo) ]] && echo -e "\n${red}${bold}ERROR${jiacu} mediainfo not found, please install it or set it to your \$PATH\n${normal}" && exit 1
@@ -404,8 +436,8 @@ for c in $(seq -w 1 $pics); do
             -H 'Content-Type: multipart/form-data; charset=utf-8' \
             -H 'Accept: application/json' \
             -F "img=@$IMG_FILE" \
-            -F 'content_type=0' \
-            -F 'max_th_size=420')
+            -F "content_type=0" \
+            -F "max_th_size=420")
 
         # 检查curl执行是否成功
         if [[ $? -eq 0 ]]; then
