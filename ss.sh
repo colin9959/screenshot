@@ -459,11 +459,16 @@ else
     echo -e "\n${yellow}Warning: No successful image uploads to add to mediainfo file${normal}"
 fi
 
-# 展示有效的图片URL
+# 展示有效的图片URL + BBCode 格式
 if [[ ${#SHOW_URLS[@]} -gt 0 ]]; then
     echo -e "\n${bold}所有图片上传完成!有效的URL如下:${normal}"
     for url in "${SHOW_URLS[@]}"; do
         echo -e "${cyan}$url${normal}"
+    done
+
+    echo -e "\n${bold}BBCode 格式链接 (可直接粘贴到论坛):${normal}"
+    for url in "${SHOW_URLS[@]}"; do
+        echo -e "${green}[img]$url[/img]${normal}"
     done
 fi
 
