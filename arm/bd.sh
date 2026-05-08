@@ -116,10 +116,14 @@ extract_bd_info() {
     local bdinfo_file="$TEMPDIR/bdinfo_$$.txt"
     echo "正在提取 BD 信息..." >&2
     
+    # 执行 BDInfo
     if BDInfo -p "$target" -o "$bdinfo_file"; then
         cp "$bdinfo_file" "${OUTPUT_DIR}/bdinfo.txt"
         parse_bdinfo < "$bdinfo_file"
         rm -f "$bdinfo_file"
+        
+        # ✅ 执行成功：删除 debug 日志
+        rm -f /usr/local/bin/debug_*.log
     else
         echo "错误：BDInfo 执行失败" >&2
         exit 1
