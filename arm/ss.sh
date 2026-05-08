@@ -358,14 +358,15 @@ for c in $(seq -w 1 $pics) ; do
     ffmpeg -y -ss "$timestamp" -i "$mediapath" -ss 00:00:01 -frames:v 1 -s "$fenbianlv" -compression_level 9 "${outputpath}/${file_title_clean}.scr${c}.png" > /dev/null 2>&1
     [[ -f "${outputpath}/${file_title_clean}.scr${c}.png" ]] && success_src=y || success_src=n
 
-    # 大于10MB自动用convert高质量压缩
+    # 大于10MB自动用convert高质量压缩 + 显示大小
     if [[ $success_src == y ]]; then
         IMG_PATH="${outputpath}/${file_title_clean}.scr${c}.png"
         FILE_SIZE=$(stat -c%s "$IMG_PATH" 2>/dev/null || echo 0)
         MAX_SIZE=$((10 * 1024 * 1024)) # 10MB
-        
+        raw_size=$(du -h "$IMG_PATH" | cut -f1)
+
         if (( FILE_SIZE > MAX_SIZE )); then
-            echo -n -e "\n${yellow}文件超过10MB，正在高质量压缩...${normal} "
+            echo -e "\n${yellow}文件超过10MB，正在高质量压缩...${normal}"
             TMP_FILE="${IMG_PATH}.tmp.png"
             convert "$IMG_PATH" \
               -colorspace sRGB \
@@ -373,14 +374,20 @@ for c in $(seq -w 1 $pics) ; do
               -depth 8 \
               -define png:compression-level=9 \
               -strip "$TMP_FILE"
+
             if [[ -f "$TMP_FILE" ]]; then
                 mv -f "$TMP_FILE" "$IMG_PATH"
-                echo -n -e "${green}压缩完成${normal} "
+                new_size=$(du -h "$IMG_PATH" | cut -f1)
+                echo -e "${green}DONE (${raw_size} → ${new_size})${normal}"
+            else
+                echo -e "${red}ERROR${normal}"
             fi
+        else
+            echo -e "${green}DONE (Size: ${raw_size})${normal}"
         fi
+    else
+        echo -e "${red}ERROR${normal}"
     fi
-
-    [[ $success_src == y ]] && echo -e "${green}DONE${normal}" || echo -e "${red}ERROR${normal}"
 done
 
 # 生成媒体信息文件
