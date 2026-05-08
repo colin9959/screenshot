@@ -15,6 +15,24 @@ mkdir -p "$OUTPUT_DIR"
 mkdir -p "$MOUNT_POINT"
 mkdir -p "$TEMPDIR"
 
+# ===================== 自动安装依赖（修复ICU错误） =====================
+install_deps() {
+    if command -v apt &>/dev/null; then
+        sudo apt update -qq
+        sudo apt install -y libicu-dev unzip wget
+    elif command -v dnf &>/dev/null; then
+        sudo dnf install -y libicu unzip wget
+    elif command -v yum &>/dev/null; then
+        sudo yum install -y libicu unzip wget
+    fi
+}
+
+# 先安装依赖
+install_deps
+
+# 强制设置 .NET 全局化模式（彻底修复ICU错误）
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
+
 # ===================== 安装 BDInfo =====================
 install_bdinfo() {
     if ! command -v BDInfo &>/dev/null; then
@@ -122,7 +140,7 @@ extract_bd_info() {
         parse_bdinfo < "$bdinfo_file"
         rm -f "$bdinfo_file"
         
-        # ✅ 执行成功：删除 debug 日志
+        # 执行成功：删除 debug 日志
         rm -f /usr/local/bin/debug_*.log
     else
         echo "错误：BDInfo 执行失败" >&2
