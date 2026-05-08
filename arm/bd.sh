@@ -50,10 +50,12 @@ install_bdinfo() {
     fi
 }
 
-# ===================== 获取所有 m2ts 并按大小排序 =====================
+# ===================== 获取所有 m2ts 并按大小排序（修复空格） =====================
 get_all_m2ts_sorted() {
     local bd_path="$1"
-    find "$bd_path" -type f -iname "*.m2ts" | xargs ls -lhS | awk '{print $5"\t"$NF}'
+    find "$bd_path" -type f -iname "*.m2ts" -print0 | du -b --files0-from=- | sort -nr | while read -r size filepath; do
+        printf "%s\t%s\n" "$(numfmt --to=iec --suffix=B $size)" "$filepath"
+    done
 }
 
 # ===================== 选择要扫描的 m2ts 序号（支持多选，q 退出） =====================
@@ -64,9 +66,11 @@ select_m2ts_files() {
     local i=1
 
     while IFS=$'\t' read -r size filepath; do
-        file_list+=("$filepath")
-        echo -e "[$i]\t大小：$size\t文件：$filepath"
-        ((i++))
+        if [ -n "$filepath" ] && [ -f "$filepath" ]; then
+            file_list+=("$filepath")
+            echo -e "[$i]\t大小：$size\t文件：$filepath"
+            ((i++))
+        fi
     done < <(get_all_m2ts_sorted "$bd_path")
 
     if [ ${#file_list[@]} -eq 0 ]; then
@@ -111,7 +115,7 @@ select_m2ts_files() {
         echo " → $f"
     done
 
-    echo "${selected_files[@]}"
+    printf "%s\n" "${selected_files[@]}"
 }
 
 # ===================== 检测输入类型 =====================
@@ -195,9 +199,8 @@ scan_single_m2ts() {
 
 # ===================== 批量扫描选中的 m2ts =====================
 batch_scan_m2ts() {
-    local files=("$@")
-    for f in "${files[@]}"; do
-        scan_single_m2ts "$f"
+    while IFS= read -r file; do
+        [ -n "$file" ] && scan_single_m2ts "$file"
     done
 }
 
@@ -223,14 +226,12 @@ type=$(get_input_type "$input_path")
 install_bdinfo
 
 if [[ "$type" == "bdmv" ]]; then
-    selected_files=($(select_m2ts_files "$input_path"))
-    batch_scan_m2ts "${selected_files[@]}"
+    select_m2ts_files "$input_path" | batch_scan_m2ts
 
 elif [[ "$type" == "iso" ]]; then
     echo "挂载 ISO..."
     sudo mount -o loop "$input_path" "$MOUNT_POINT"
-    selected_files=($(select_m2ts_files "$MOUNT_POINT"))
-    batch_scan_m2ts "${selected_files[@]}"
+    select_m2ts_files "$MOUNT_POINT" | batch_scan_m2ts
 
 elif [[ "$type" == "video" ]]; then
     echo "普通视频，无需 BDInfo 扫描"
