@@ -1,6 +1,10 @@
 # screenshot
 
 # 一键安装截图和mediainfo、bdinfo指令
+## 自动识别安装对应版本：
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/run.sh)"
+```
 ## X86版本：
 ```bash
 curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/bash-ss.sh | tr -d '\r' | bash
