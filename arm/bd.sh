@@ -3,8 +3,9 @@ set -e
 
 OUTPUT_DIR="/home/screenshot"
 TMP_LIST="/tmp/m2ts_list.txt"
+TMP_COPY="/tmp/temp_m2ts"
 rm -f "$TMP_LIST"
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$TMP_COPY"
 
 install_bdinfo() {
   if command -v BDInfo &>/dev/null; then
@@ -24,7 +25,6 @@ install_bdinfo() {
   cp /tmp/BDInfo* /usr/local/bin/
 }
 
-# 🔥 这里彻底不用 ls / xargs，绝对支持空格
 show_list() {
   echo -e "\n====================================="
   echo " m2ts 文件列表"
@@ -48,10 +48,17 @@ select_and_scan() {
 
   for i in $sel; do
     file="${arr[$i-1]}"
-    echo -e "\n正在扫描：$file"
-    name=$(basename "$file" .m2ts)
-    BDInfo -p "$file" -o "$OUTPUT_DIR/bdinfo_$name.txt"
-    echo "✅ 保存：$OUTPUT_DIR/bdinfo_$name.txt"
+    name=$(basename "$file")
+    tmpfile="$TMP_COPY/$name"
+
+    echo -e "\n正在处理：$name"
+    \cp -f "$file" "$tmpfile"
+
+    echo "正在扫描：$tmpfile"
+    BDInfo -p "$tmpfile" -o "$OUTPUT_DIR/bdinfo_${name%.m2ts}.txt"
+    
+    echo "✅ 保存成功：$OUTPUT_DIR/bdinfo_${name%.m2ts}.txt"
+    rm -f "$tmpfile"
   done
 }
 
@@ -60,3 +67,5 @@ select_and_scan() {
 install_bdinfo
 show_list "$1"
 select_and_scan
+
+rm -rf "$TMP_COPY"
