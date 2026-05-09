@@ -64,7 +64,6 @@ parse_bdinfo() {
 # ===================== 提取 BD 信息 =====================
 extract_bd_info() {
     local target="$1"
-    install_bdinfo
     local bdinfo_file="$TEMPDIR/bdinfo_$$.txt"
     echo "正在提取 BD 信息..." >&2
     
