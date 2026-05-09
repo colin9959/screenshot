@@ -9,8 +9,8 @@ echo "========================================"
 # 1. 创建ISO挂载目录
 echo -e "\n[1/5] 创建ISO挂载目录 /mnt/iso..."
 sudo mkdir -p /mnt/iso
-# 2. 下载 ss.sh 和 nconvert
-echo -e "\n[2/5] 下载 ss.sh文件..."
+# 2. 下载 ss.sh 和 bd.sh
+echo -e "\n[2/5] 下载 ss.sh和bd.sh文件..."
 # 先删除旧版本（如果存在）
 sudo rm -f /usr/local/bin/ss.sh
 sudo rm -f /usr/local/bin/bd.sh
