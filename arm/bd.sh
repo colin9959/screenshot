@@ -58,8 +58,7 @@ parse_bdinfo() {
 # ===================== 提取 BD 信息 =====================
 extract_bd_info() {
     local target="$1"
-    install_bdinfo
-
+    
     # 每次执行前确保临时目录存在（核心修复）
     mkdir -p "$TEMPDIR"
     
