@@ -27,20 +27,37 @@ install_deps() {
         need_install+=("unzip")
     fi
 
+    # 检测 libicu 是否安装
+    local has_libicu=1
+    if command -v apt &>/dev/null; then
+        dpkg -l | grep -q libicu-dev || has_libicu=0
+    elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
+        rpm -q libicu &>/dev/null || has_libicu=0
+    fi
+
+    # libicu 未安装，加入安装列表
+    if [ $has_libicu -eq 0 ]; then
+        if command -v apt &>/dev/null; then
+            need_install+=("libicu-dev")
+        else
+            need_install+=("libicu")
+        fi
+    fi
+
     # 无需要安装的依赖，直接退出
     if [ ${#need_install[@]} -eq 0 ]; then
-        echo "依赖项 wget/unzip 已安装，跳过安装" >&2
+        echo "所有依赖项已安装，跳过安装" >&2
         return
     fi
 
     echo "正在安装缺失依赖：${need_install[*]}" >&2
     if command -v apt &>/dev/null; then
         sudo apt update -qq
-        sudo apt install -y libicu-dev "${need_install[@]}"
+        sudo apt install -y "${need_install[@]}"
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y libicu "${need_install[@]}"
+        sudo dnf install -y "${need_install[@]}"
     elif command -v yum &>/dev/null; then
-        sudo yum install -y libicu "${need_install[@]}"
+        sudo yum install -y "${need_install[@]}"
     fi
 }
 
