@@ -132,6 +132,9 @@ install_bdinfo() {
     echo "错误：无法下载 BDInfo" >&2
     exit 1
 }
+
+install_bdinfo
+
 # 5. 安装完成提示
 echo -e "\n========================================"
 echo "           所有操作执行完成！"
