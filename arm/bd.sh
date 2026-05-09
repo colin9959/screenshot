@@ -6,20 +6,17 @@ OUTPUT_DIR="/home/screenshot"
 MOUNT_POINT="/mnt/iso"
 TEMPDIR="/tmp/bdinfo_temp_$$"
 
-# 先创建临时目录（防止不存在）
+# 必须创建目录
+mkdir -p "$OUTPUT_DIR"
 mkdir -p "$TEMPDIR"
 
 # ===================== 【修复】检测输入类型 =====================
 get_input_type() {
     local input="$1"
-
-    if [ -d "$input" ]; then
-        if [ -d "$input/BDMV" ]; then
-            echo "bdmv"
-            return 0
-        fi
+    if [ -d "$input" ] && [ -d "$input/BDMV" ]; then
+        echo "bdmv"
+        return 0
     fi
-
     if [ -f "$input" ]; then
         local ext=$(echo "$input" | awk -F. '{if (NF>1) print tolower($NF)}')
         case "$ext" in
@@ -27,7 +24,6 @@ get_input_type() {
             iso) echo "iso"; return 0;;
         esac
     fi
-
     echo "unknown"
 }
 
@@ -50,7 +46,7 @@ parse_bdinfo() {
             print "↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑ 分割线 ↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑";
         } else {
             print "错误：无有效PLAYLIST" > "/dev/stderr";
-            exit 1
+            exit 1;
         }
     }'
 }
@@ -58,29 +54,30 @@ parse_bdinfo() {
 # ===================== 提取 BD 信息 =====================
 extract_bd_info() {
     local target="$1"
-    
-    # 每次执行前确保临时目录存在（核心修复）
-    mkdir -p "$TEMPDIR"
-    
-    local bdinfo_file="$TEMPDIR/bdinfo_$$.txt"
-    
+
+    # 【核心修复】BDInfo 只能输出到当前目录的 bdinfo.txt
+    local output_txt="bdinfo.txt"
     echo "正在提取 BD 信息..." >&2
-    
-    # 执行 BDInfo
-    if BDInfo -p "$target" -o "$bdinfo_file"; then
-    
-        # 等待文件生成（防止异步延迟）
+
+    # 进入临时目录执行（防止污染系统）
+    cd "$TEMPDIR" || exit 1
+
+    # 正确用法：BDInfo 不支持 -o 参数！直接运行
+    if BDInfo -p "$target"; then
         sleep 0.5
-        
-        if [ ! -f "$bdinfo_file" ]; then
-            echo "⚠️  BDInfo 未生成输出文件，尝试重新扫描..."
-            BDInfo -p "$target" -o "$bdinfo_file"
-            sleep 0.5
+
+        # 检查是否生成文件
+        if [ ! -f "$output_txt" ]; then
+            echo "错误：BDInfo 未生成报告" >&2
+            exit 1
         fi
 
-        cp "$bdinfo_file" "${OUTPUT_DIR}/bdinfo.txt"
-        parse_bdinfo < "$bdinfo_file"
-        rm -f "$bdinfo_file"
+        # 复制到目标目录
+        cp "$output_txt" "${OUTPUT_DIR}/bdinfo.txt"
+        # 前端显示
+        parse_bdinfo < "$output_txt"
+        # 清理
+        rm -f "$output_txt"
         rm -f /usr/local/bin/debug_*.log
     else
         echo "错误：BDInfo 执行失败" >&2
@@ -88,16 +85,13 @@ extract_bd_info() {
     fi
 }
 
-# ===================== 清理（延迟清理） =====================
+# ===================== 清理 =====================
 cleanup() {
-    # 等待所有操作结束再清理
     sync
     sleep 1
-    
     if mountpoint -q "$MOUNT_POINT"; then
         sudo umount "$MOUNT_POINT" 2>/dev/null || true
     fi
-    
     rm -rf "$TEMPDIR"
 }
 trap cleanup EXIT
@@ -111,6 +105,7 @@ fi
 input_path="$1"
 type=$(get_input_type "$input_path")
 
+# 生成干净文件名
 get_clean_filename() {
     local raw="$1"
     local name=$(basename "$raw")
@@ -120,6 +115,7 @@ get_clean_filename() {
 }
 clean_name=$(get_clean_filename "$input_path")
 
+# 执行
 if [[ "$type" == "bdmv" ]]; then
     extract_bd_info "$input_path"
 elif [[ "$type" == "iso" ]]; then
@@ -134,6 +130,7 @@ else
     exit 1
 fi
 
+# 重命名
 if [ -f "${OUTPUT_DIR}/bdinfo.txt" ]; then
     mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
     echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
