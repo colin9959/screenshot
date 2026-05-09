@@ -107,39 +107,29 @@ install_bdinfo() {
     exit 1
 }
 
-# ===================== 检测输入类型 =====================
+# ===================== 【修复】检测输入类型 =====================
 get_input_type() {
     local input="$1"
+
+    # 先判断是不是目录
+    if [ -d "$input" ]; then
+        # 只要目录里有 BDMV 文件夹，就判定为蓝光目录
+        if [ -d "$input/BDMV" ] || [ -d "$input/../BDMV" ]; then
+            echo "bdmv"
+            return 0
+        fi
+    fi
+
+    # 其他判断不变
     if [ -f "$input" ]; then
         local ext=$(echo "$input" | awk -F. '{if (NF>1) print tolower($NF)}')
         case "$ext" in
             mkv|mp4|avi|mov|flv|wmv|m4v|ts|m2ts) echo "video"; return 0;;
             iso) echo "iso"; return 0;;
         esac
-        echo "bdfile"
-    elif [ -d "$input" ]; then
-        if [ -d "$input/BDMV" ]; then
-            echo "bdmv"
-        elif [ -d "$input/VIDEO_TS" ]; then
-            echo "dvd"
-        else
-            local iso_file=$(find "$input" -maxdepth 1 -type f \( -iname "*.iso" \) | head -1)
-            if [ -n "$iso_file" ]; then
-                echo "iso"
-            else
-                local video_file=$(find "$input" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.ts" -o -iname "*.m2ts" \) | head -1)
-                if [ -n "$video_file" ]; then
-                    echo "video_file:$video_file"
-                else
-                    echo "错误：无有效视频/BD文件" >&2
-                    exit 1
-                fi
-            fi
-        fi
-    else
-        echo "错误：无效路径" >&2
-        exit 1
     fi
+
+    echo "unknown"
 }
 
 # ===================== 解析 BDInfo =====================
@@ -227,7 +217,7 @@ elif [[ "$type" == "video" ]]; then
     echo "普通视频，无需 BDInfo 扫描"
     exit 0
 else
-    echo "不支持的格式"
+    echo "错误：不是有效的蓝光目录/ISO文件"
     exit 1
 fi
 
