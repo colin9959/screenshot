@@ -223,6 +223,6 @@ fi
 
 # 重命名文件
 if [ -f "${OUTPUT_DIR}/bdinfo.txt" ]; then
-    mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}.txt"
-    echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}.txt"
+    mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
+    echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
 fi
