@@ -12,6 +12,9 @@ sudo mkdir -p /mnt/iso
 # 2. 下载 ss.sh 和 bd.sh
 echo -e "\n[2/5] 下载 ss.sh和bd.sh文件..."
 # 先删除旧版本（如果存在）
+chmod -x /usr/local/bin/ss.sh
+chmod -x /usr/local/bin/bd.sh
+chmod -x /usr/local/bin/BDInfo
 sudo rm -f /usr/local/bin/ss.sh
 sudo rm -f /usr/local/bin/bd.sh
 sudo rm -f /usr/local/bin/BDInfo
