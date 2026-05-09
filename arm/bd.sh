@@ -6,20 +6,20 @@ OUTPUT_DIR="/home/screenshot"
 MOUNT_POINT="/mnt/iso"
 TEMPDIR="/tmp/bdinfo_temp_$$"
 
+# 先创建临时目录（防止不存在）
+mkdir -p "$TEMPDIR"
+
 # ===================== 【修复】检测输入类型 =====================
 get_input_type() {
     local input="$1"
 
-    # 先判断是不是目录
     if [ -d "$input" ]; then
-        # 只要目录里有 BDMV 文件夹，就判定为蓝光目录
-        if [ -d "$input/BDMV" ] || [ -d "$input/../BDMV" ]; then
+        if [ -d "$input/BDMV" ]; then
             echo "bdmv"
             return 0
         fi
     fi
 
-    # 其他判断不变
     if [ -f "$input" ]; then
         local ext=$(echo "$input" | awk -F. '{if (NF>1) print tolower($NF)}')
         case "$ext" in
@@ -44,13 +44,13 @@ parse_bdinfo() {
     }
     END {
         if(best_section!=""){
-            sub(/[[:space:]]+$/,"",best_section);
+            sub(/[[:space:]]+$/,"best_section");
             print "↓#↓#↓#↓#↓#↓#↓#↓#↓#↓#↓ BDInfo 信息 ↓#↓#↓#↓#↓#↓#↓#↓#↓#↓#↓";
             print best_section;
             print "↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑ 分割线 ↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑";
         } else {
             print "错误：无有效PLAYLIST" > "/dev/stderr";
-            exit 1;
+            exit 1
         }
     }'
 }
@@ -59,16 +59,29 @@ parse_bdinfo() {
 extract_bd_info() {
     local target="$1"
     install_bdinfo
+
+    # 每次执行前确保临时目录存在（核心修复）
+    mkdir -p "$TEMPDIR"
+    
     local bdinfo_file="$TEMPDIR/bdinfo_$$.txt"
+    
     echo "正在提取 BD 信息..." >&2
     
     # 执行 BDInfo
     if BDInfo -p "$target" -o "$bdinfo_file"; then
+    
+        # 等待文件生成（防止异步延迟）
+        sleep 0.5
+        
+        if [ ! -f "$bdinfo_file" ]; then
+            echo "⚠️  BDInfo 未生成输出文件，尝试重新扫描..."
+            BDInfo -p "$target" -o "$bdinfo_file"
+            sleep 0.5
+        fi
+
         cp "$bdinfo_file" "${OUTPUT_DIR}/bdinfo.txt"
         parse_bdinfo < "$bdinfo_file"
         rm -f "$bdinfo_file"
-        
-        # 执行成功：删除 debug 日志
         rm -f /usr/local/bin/debug_*.log
     else
         echo "错误：BDInfo 执行失败" >&2
@@ -76,17 +89,21 @@ extract_bd_info() {
     fi
 }
 
-# ===================== 清理 =====================
+# ===================== 清理（延迟清理） =====================
 cleanup() {
+    # 等待所有操作结束再清理
+    sync
+    sleep 1
+    
     if mountpoint -q "$MOUNT_POINT"; then
         sudo umount "$MOUNT_POINT" 2>/dev/null || true
     fi
-    rm -rf "$MOUNT_POINT" "$TEMPDIR"
-    wait 2>/dev/null || true
+    
+    rm -rf "$TEMPDIR"
 }
 trap cleanup EXIT
 
-# ===================== 主程序（可直接运行） =====================
+# ===================== 主程序 =====================
 if [[ $# -ne 1 ]]; then
     echo "用法：$0 <蓝光目录/ISO文件>"
     exit 1
@@ -95,7 +112,6 @@ fi
 input_path="$1"
 type=$(get_input_type "$input_path")
 
-# 生成干净文件名
 get_clean_filename() {
     local raw="$1"
     local name=$(basename "$raw")
@@ -105,7 +121,6 @@ get_clean_filename() {
 }
 clean_name=$(get_clean_filename "$input_path")
 
-# 执行扫描
 if [[ "$type" == "bdmv" ]]; then
     extract_bd_info "$input_path"
 elif [[ "$type" == "iso" ]]; then
@@ -120,7 +135,6 @@ else
     exit 1
 fi
 
-# 重命名文件
 if [ -f "${OUTPUT_DIR}/bdinfo.txt" ]; then
     mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
     echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
