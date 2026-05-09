@@ -7,7 +7,7 @@ echo "        支持：ss截图 + BDInfo蓝光检测"
 echo "========================================"
 
 # 1. 下载 ss.sh 和 bd.sh
-echo -e "\n[1/4] 下载 ss.sh和bd.sh文件..."
+echo -e "\n[1/4] 下载 ss.sh文件..."
 # 先删除旧版本（如果存在）
 [ -f /usr/local/bin/ss.sh ] && sudo chmod -x /usr/local/bin/ss.sh
 [ -f /usr/local/bin/bd.sh ] && sudo chmod -x /usr/local/bin/bd.sh
