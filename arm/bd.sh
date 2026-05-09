@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # ===================== 固定配置 =====================
-INSTALL_DIR="/usr/local/bin"
 OUTPUT_DIR="/home/screenshot"
 MOUNT_POINT="/mnt/iso"
-TEMPDIR="/tmp/bdinfo_temp_$$"
+TEMPDIR="/tmp/bdinfo_temp"
 
-# 创建必需目录
+# 创建目录
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$MOUNT_POINT"
 mkdir -p "$TEMPDIR"
@@ -14,26 +13,20 @@ mkdir -p "$TEMPDIR"
 # ===================== 检测输入类型 =====================
 get_input_type() {
     local input="$1"
-
-    if [ -d "$input" ]; then
-        if [ -d "$input/BDMV" ] || [ -d "$input/../BDMV" ]; then
-            echo "bdmv"
-            return 0
-        fi
+    if [ -d "$input" ] && [ -d "$input/BDMV" ]; then
+        echo "bdmv"
+        return 0
     fi
-
     if [ -f "$input" ]; then
-        local ext=$(echo "$input" | awk -F. '{if (NF>1) print tolower($NF)}')
-        case "$ext" in
-            mkv|mp4|avi|mov|flv|wmv|m4v|ts|m2ts) echo "video"; return 0;;
-            iso) echo "iso"; return 0;;
-        esac
+        local ext="${input##*.}"
+        ext=$(echo "$ext" | tr 'A-Z' 'a-z')
+        if [ "$ext" = "iso" ]; then echo "iso"; return 0; fi
+        if [[ "$ext" =~ ^(mkv|mp4|avi|mov|flv|wmv|m4v|ts|m2ts)$ ]]; then echo "video"; return 0; fi
     fi
-
     echo "unknown"
 }
 
-# ===================== 解析 BDInfo 输出 =====================
+# ===================== 解析 BDInfo =====================
 parse_bdinfo() {
     awk '
     BEGIN {RS = "DISC INFO:"; max_size=0; best_section=""}
@@ -51,8 +44,7 @@ parse_bdinfo() {
             print best_section;
             print "↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑ 分割线 ↑#↑#↑#↑#↑#↑#↑#↑#↑#↑#↑";
         } else {
-            print "错误：无有效PLAYLIST" > "/dev/stderr";
-            exit 1;
+            print "错误：无有效PLAYLIST" > "/dev/stderr"; exit 1;
         }
     }'
 }
@@ -60,25 +52,32 @@ parse_bdinfo() {
 # ===================== 提取 BD 信息 =====================
 extract_bd_info() {
     local target="$1"
-    local bdinfo_file="$TEMPDIR/bdinfo_$$.txt"
     echo "正在提取 BD 信息..." >&2
 
-    # BDInfo 正确执行（支持 -o 输出）
-    if BDInfo -p "$target" -o "$bdinfo_file"; then
-        cp "$bdinfo_file" "${OUTPUT_DIR}/bdinfo.txt"
-        parse_bdinfo < "$bdinfo_file"
-        rm -f "$bdinfo_file"
-        rm -f /usr/local/bin/debug_*.log 2>/dev/null
-    else
-        echo "错误：BDInfo 执行失败" >&2
-        exit 1
+    cd "$TEMPDIR" || exit 1
+    rm -f BDInfoReport.txt bdinfo.txt
+
+    # ✅ 正确执行：你的 BDInfo 不支持 -o，只能这样运行
+    BDInfo -p "$target"
+
+    sleep 0.8
+
+    # 读取真实输出文件
+    if [ -f "BDInfoReport.txt" ]; then
+        cp BDInfoReport.txt "${OUTPUT_DIR}/bdinfo.txt"
+        parse_bdinfo < BDInfoReport.txt
+        rm -f BDInfoReport.txt
+        return 0
     fi
+
+    echo "错误：BDInfo 未生成报告" >&2
+    exit 1
 }
 
 # ===================== 退出清理 =====================
 cleanup() {
     if mountpoint -q "$MOUNT_POINT"; then
-        sudo umount "$MOUNT_POINT" 2>/dev/null || true
+        sudo umount "$MOUNT_POINT" 2>/dev/null
     fi
     rm -rf "$TEMPDIR"
 }
@@ -93,32 +92,31 @@ fi
 input_path="$1"
 type=$(get_input_type "$input_path")
 
-# 生成安全文件名
 get_clean_filename() {
     local raw="$1"
     local name=$(basename "$raw")
     name="${name%.*}"
-    name=$(echo "$name" | sed 's/[^a-zA-Z0-9_-]/_/g' | sed 's/__*/_/g')
-    echo "$name"
+    echo "$name" | sed 's/[^a-zA-Z0-9_-]/_/g' | sed 's/__*/_/g'
 }
 clean_name=$(get_clean_filename "$input_path")
 
-# 执行任务
-if [[ "$type" == "bdmv" ]]; then
-    extract_bd_info "$input_path"
-elif [[ "$type" == "iso" ]]; then
-    echo "挂载 ISO..."
-    sudo mount -o loop "$input_path" "$MOUNT_POINT" 2>/dev/null
-    extract_bd_info "$MOUNT_POINT"
-elif [[ "$type" == "video" ]]; then
-    echo "普通视频，无需 BDInfo 扫描"
-    exit 0
-else
-    echo "错误：不是有效的蓝光目录/ISO文件"
-    exit 1
-fi
+case "$type" in
+    bdmv) extract_bd_info "$input_path" ;;
+    iso)
+        echo "挂载 ISO..."
+        sudo mount -o loop "$input_path" "$MOUNT_POINT"
+        extract_bd_info "$MOUNT_POINT"
+        ;;
+    video)
+        echo "普通视频，无需 BDInfo 扫描"
+        exit 0
+        ;;
+    *)
+        echo "错误：不是有效的蓝光目录/ISO文件"
+        exit 1
+        ;;
+esac
 
-# 重命名输出文件
 if [ -f "${OUTPUT_DIR}/bdinfo.txt" ]; then
     mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
     echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}-bdinfo.txt"
