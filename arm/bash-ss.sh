@@ -11,6 +11,9 @@ echo -e "\n[1/5] 创建ISO挂载目录 /mnt/iso..."
 sudo mkdir -p /mnt/iso
 # 2. 下载 ss.sh 和 nconvert
 echo -e "\n[2/5] 下载 ss.sh文件..."
+# 先删除旧版本（如果存在）
+sudo rm -f /usr/local/bin/ss.sh
+sudo rm -f /usr/local/bin/bd.sh
 sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/ss.sh -o /usr/local/bin/ss.sh
 # 3. 赋予执行权限
 echo -e "\n[3/5] 赋予文件执行权限..."
