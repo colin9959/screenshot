@@ -206,6 +206,17 @@ fi
 input_path="$1"
 type=$(get_input_type "$input_path")
 
+# 生成干净文件名
+get_clean_filename() {
+    local raw="$1"
+    local name=$(basename "$raw")
+    name="${name%.*}"
+    name=$(echo "$name" | sed 's/[^a-zA-Z0-9_-]/_/g' | sed 's/__*/_/g')
+    echo "$name"
+}
+clean_name=$(get_clean_filename "$input_path")
+
+# 执行扫描
 if [[ "$type" == "bdmv" ]]; then
     extract_bd_info "$input_path"
 elif [[ "$type" == "iso" ]]; then
@@ -214,7 +225,14 @@ elif [[ "$type" == "iso" ]]; then
     extract_bd_info "$MOUNT_POINT"
 elif [[ "$type" == "video" ]]; then
     echo "普通视频，无需 BDInfo 扫描"
+    exit 0
 else
     echo "不支持的格式"
     exit 1
+fi
+
+# 重命名文件
+if [ -f "${OUTPUT_DIR}/bdinfo.txt" ]; then
+    mv -f "${OUTPUT_DIR}/bdinfo.txt" "${OUTPUT_DIR}/${clean_name}.txt"
+    echo -e "\n✅ 文件已保存：${OUTPUT_DIR}/${clean_name}.txt"
 fi
