@@ -15,15 +15,32 @@ mkdir -p "$OUTPUT_DIR"
 mkdir -p "$MOUNT_POINT"
 mkdir -p "$TEMPDIR"
 
-# ===================== 自动安装依赖（修复ICU错误） =====================
+# ===================== 自动安装依赖（已安装则跳过） =====================
 install_deps() {
+    local need_install=()
+
+    # 检测依赖是否已安装
+    if ! command -v wget &>/dev/null; then
+        need_install+=("wget")
+    fi
+    if ! command -v unzip &>/dev/null; then
+        need_install+=("unzip")
+    fi
+
+    # 无需要安装的依赖，直接退出
+    if [ ${#need_install[@]} -eq 0 ]; then
+        echo "依赖项 wget/unzip 已安装，跳过安装" >&2
+        return
+    fi
+
+    echo "正在安装缺失依赖：${need_install[*]}" >&2
     if command -v apt &>/dev/null; then
         sudo apt update -qq
-        sudo apt install -y libicu-dev unzip wget
+        sudo apt install -y libicu-dev "${need_install[@]}"
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y libicu unzip wget
+        sudo dnf install -y libicu "${need_install[@]}"
     elif command -v yum &>/dev/null; then
-        sudo yum install -y libicu unzip wget
+        sudo yum install -y libicu "${need_install[@]}"
     fi
 }
 
@@ -33,39 +50,44 @@ install_deps
 # 强制设置 .NET 全局化模式（彻底修复ICU错误）
 export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 
-# ===================== 安装 BDInfo =====================
+# ===================== 安装 BDInfo（已安装则跳过） =====================
 install_bdinfo() {
-    if ! command -v BDInfo &>/dev/null; then
-        local arch=$(uname -m)
-        local bdinfo_url=""
-        
-        if [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then
-            echo "检测到 ARM64 架构，正在安装 BDInfo..." >&2
-            bdinfo_url="$BDINFO_URL_ARM64"
-        else
-            echo "检测到 x86_64 架构，正在安装 BDInfo..." >&2
-            bdinfo_url="$BDINFO_URL_X64"
-        fi
-        
-        local mirrors=(
-            "$bdinfo_url"
-            "https://ghfast.top/$bdinfo_url"
-        )
-        
-        for mirror in "${mirrors[@]}"; do
-            if wget -q "$mirror" -O "$TEMPDIR/bdinfo.zip"; then
-                unzip -q -o "$TEMPDIR/bdinfo.zip" -d "$TEMPDIR"
-                chmod +x "$TEMPDIR"/BDInfo*
-                sudo cp "$TEMPDIR"/BDInfo* "$INSTALL_DIR/"
-                echo "BDInfo 安装成功！" >&2
-                rm -rf "$TEMPDIR"
-                mkdir -p "$TEMPDIR"
-                return 0
-            fi
-        done
-        echo "错误：无法下载 BDInfo" >&2
-        exit 1
+    # 检测 BDInfo 是否已安装，有则直接跳过
+    if command -v BDInfo &>/dev/null; then
+        echo "BDInfo 已安装，跳过下载安装" >&2
+        return 0
     fi
+
+    echo "未检测到 BDInfo，开始自动安装..." >&2
+    local arch=$(uname -m)
+    local bdinfo_url=""
+    
+    if [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then
+        echo "检测到 ARM64 架构" >&2
+        bdinfo_url="$BDINFO_URL_ARM64"
+    else
+        echo "检测到 x86_64 架构" >&2
+        bdinfo_url="$BDINFO_URL_X64"
+    fi
+    
+    local mirrors=(
+        "$bdinfo_url"
+        "https://ghfast.top/$bdinfo_url"
+    )
+    
+    for mirror in "${mirrors[@]}"; do
+        if wget -q "$mirror" -O "$TEMPDIR/bdinfo.zip"; then
+            unzip -q -o "$TEMPDIR/bdinfo.zip" -d "$TEMPDIR"
+            chmod +x "$TEMPDIR"/BDInfo*
+            sudo cp "$TEMPDIR"/BDInfo* "$INSTALL_DIR/"
+            echo "BDInfo 安装成功！" >&2
+            rm -rf "$TEMPDIR"
+            mkdir -p "$TEMPDIR"
+            return 0
+        fi
+    done
+    echo "错误：无法下载 BDInfo" >&2
+    exit 1
 }
 
 # ===================== 检测输入类型 =====================
