@@ -9,9 +9,9 @@ echo "========================================"
 # 1. 下载 ss.sh 和 bd.sh
 echo -e "\n[1/4] 下载 ss.sh和bd.sh文件..."
 # 先删除旧版本（如果存在）
-[ -f /usr/local/bin/ss.sh ] && chmod -x /usr/local/bin/ss.sh
-[ -f /usr/local/bin/bd.sh ] && chmod -x /usr/local/bin/bd.sh
-[ -f /usr/local/bin/BDInfo ] && chmod -x /usr/local/bin/BDInfo
+[ -f /usr/local/bin/ss.sh ] && sudo chmod -x /usr/local/bin/ss.sh
+[ -f /usr/local/bin/bd.sh ] && sudo chmod -x /usr/local/bin/bd.sh
+[ -f /usr/local/bin/BDInfo ] && sudo chmod -x /usr/local/bin/BDInfo
 
 sudo rm -f /usr/local/bin/ss.sh
 sudo rm -f /usr/local/bin/bd.sh
@@ -19,11 +19,11 @@ sudo rm -f /usr/local/bin/BDInfo
 
 sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/ss.sh -o /usr/local/bin/ss.sh
 
-# 3. 赋予执行权限
+# 2. 赋予执行权限
 echo -e "\n[2/4] 赋予文件执行权限..."
 sudo chmod +x /usr/local/bin/ss.sh
 
-# 4. 下载 bd.sh文件（arm版）
+# 3. 下载 bd.sh文件（arm版）
 echo -e "\n[3/4] 下载并安装 BDInfo..."
 sudo curl -fsSL https://raw.githubusercontent.com/colin9959/screenshot/main/arm/bd.sh -o /usr/local/bin/bd.sh
 sudo chmod +x /usr/local/bin/bd.sh
@@ -33,14 +33,14 @@ BDINFO_URL_X64="https://github.com/dotnetcorecorner/BDInfo/releases/download/lin
 BDINFO_URL_ARM64="https://github.com/colin9959/BDInfo/releases/download/1.0.0/bdinfo_linux_arm64_v2.0.6.zip"
 INSTALL_DIR="/usr/local/bin"
 
-# 三个必须的目录（已补全）
+# 三个必须的目录
 OUTPUT_DIR="/home/screenshot"
 MOUNT_POINT="/mnt/iso"
 TEMPDIR="/tmp/bdinfo_temp_$$"
 
-# 创建目录
-mkdir -p "$OUTPUT_DIR"
-mkdir -p "$MOUNT_POINT"
+# 创建目录（加sudo修复权限）
+sudo mkdir -p "$OUTPUT_DIR"
+sudo mkdir -p "$MOUNT_POINT"
 mkdir -p "$TEMPDIR"
 
 # ===================== 自动安装依赖（已安装则跳过） =====================
@@ -92,26 +92,25 @@ install_deps() {
 # 先安装依赖
 install_deps
 
-# 强制设置 .NET 全局化模式（彻底修复ICU错误）
+# 强制设置 .NET 全局化模式
 export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 
 # ===================== 安装 BDInfo（已安装则跳过） =====================
 install_bdinfo() {
-    # 检测 BDInfo 是否已安装，有则直接跳过
     if command -v BDInfo &>/dev/null; then
         echo "BDInfo 已安装，跳过下载安装" >&2
         return 0
     fi
 
-    echo "未检测到 BDInfo，开始自动安装..." >&2
+    echo "未检测到 BDInfo，开始自动安装..."
     local arch=$(uname -m)
     local bdinfo_url=""
     
     if [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then
-        echo "检测到 ARM64 架构" >&2
+        echo "检测到 ARM64 架构"
         bdinfo_url="$BDINFO_URL_ARM64"
     else
-        echo "检测到 x86_64 架构" >&2
+        echo "检测到 x86_64 架构"
         bdinfo_url="$BDINFO_URL_X64"
     fi
     
@@ -121,12 +120,13 @@ install_bdinfo() {
     )
     
     for mirror in "${mirrors[@]}"; do
-        if wget -q "$mirror" -O "$TEMPDIR/bdinfo.zip"; then
-            unzip -q -o "$TEMPDIR/bdinfo.zip" -d "$TEMPDIR"
-            chmod +x "$TEMPDIR"/BDInfo*
+        # 【关键修复】sudo wget 防止权限不足下载失败
+        if sudo wget -q "$mirror" -O "$TEMPDIR/bdinfo.zip"; then
+            sudo unzip -q -o "$TEMPDIR/bdinfo.zip" -d "$TEMPDIR"
+            sudo chmod +x "$TEMPDIR"/BDInfo*
             sudo cp "$TEMPDIR"/BDInfo* "$INSTALL_DIR/"
-            echo "BDInfo 安装成功！" >&2
-            rm -rf "$TEMPDIR"
+            echo "BDInfo 安装成功！"
+            sudo rm -rf "$TEMPDIR"
             mkdir -p "$TEMPDIR"
             return 0
         fi
@@ -135,7 +135,7 @@ install_bdinfo() {
     exit 1
 }
 
-# 执行安装 BDInfo
+# 执行安装
 install_bdinfo
 
 # 4. 安装完成提示
@@ -145,5 +145,5 @@ echo ""
 echo " ✅ screenshot   全局命令：ss.sh"
 echo " ✅ bdinfo       全局命令：bd.sh"
 echo ""
-echo " 三个工具已全部安装成功！"
+echo " 工具已全部安装成功！"
 echo "========================================"
