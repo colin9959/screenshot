@@ -463,7 +463,7 @@ for c in $(seq -w 1 $pics); do
             fi
 
             if [[ -n "$SHOW_URL" && "$SHOW_URL" != "null" ]]; then
-                FIXED_URL=$(echo "$SHOW_URL" | sed -e 's|\\||g' -e 's|://pixhost\.to|://img2.pixhost.to|' -e 's|/show/|/images/|')
+                FIXED_URL=$(echo "$SHOW_URL" | sed -e 's|\\||g' -e 's|://pixhost\.to|://img3.pixhost.to|' -e 's|/show/|/images/|')
                 echo -e "${green}SUCCESS${normal}"
                 SHOW_URLS+=("$FIXED_URL")
                 UPLOAD_SUCCESS=true
