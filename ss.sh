@@ -460,7 +460,7 @@ for c in $(seq -w 1 $pics); do
 
             if [[ -n "$SHOW_URL" && "$SHOW_URL" != "null" ]]; then
                 # 修正URL格式（处理转义符和域名）
-                FIXED_URL=$(echo "$SHOW_URL" | sed -e 's|\\||g' -e 's|://pixhost\.to|://img3.pixhost.to|' -e 's|/show/|/images/|')
+                FIXED_URL=$(echo "$SHOW_URL" | sed -e 's|\\||g' -e 's|://pixhost\.to|://img2.pixhost.to|' -e 's|/show/|/images/|')
                 echo -e "${green}SUCCESS${normal}"
                 SHOW_URLS+=("$FIXED_URL")
                 UPLOAD_SUCCESS=true
